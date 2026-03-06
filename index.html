@@ -354,10 +354,28 @@ function setBanner(type, msg) {
   b.innerHTML = msg;
 }
 
+function comprimirImagen(dataUrl, maxSize, calidad) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > h && w > maxSize) { h = h * maxSize / w; w = maxSize; }
+      else if (h > maxSize) { w = w * maxSize / h; h = maxSize; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', calidad));
+    };
+    img.src = dataUrl;
+  });
+}
+
 async function leerEtiqueta(dataUrl) {
   setBanner('loading', '<div class="spinner"></div><span>Leyendo etiqueta con IA...</span>');
   try {
-    const [meta, base64] = dataUrl.split(',');
+    // Comprimir imagen antes de enviar
+    const comprimida = await comprimirImagen(dataUrl, 1024, 0.8);
+    const [meta, base64] = comprimida.split(',');
     const mediaType = meta.match(/:(.*?);/)[1];
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
