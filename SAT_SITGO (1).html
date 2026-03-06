@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0F1923">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SAT SITGO">
+<title>SAT SITGO · Informes</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --bg:#0F1923; --surface:#172030; --card:#1E2D40; --border:#2A3D55;
+  --accent:#2E8EFF; --accent2:#00D4AA; --warn:#FF6B35; --danger:#FF3B5C;
+  --text:#E8F0FA; --muted:#7A92AC;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+header{background:linear-gradient(135deg,#0a1520,#172030);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;}
+.logo{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;flex-shrink:0;}
+.header-text h1{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;letter-spacing:1px;}
+.header-text p{font-size:10px;color:var(--muted);letter-spacing:0.5px;}
+
+main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
+
+.tabs{display:flex;gap:8px;margin-bottom:18px;}
+.tab{flex:1;padding:9px 0;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;text-align:center;letter-spacing:1px;transition:all .2s;}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+.section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;}
+.section-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.field input,.field textarea,.field select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;padding:10px 12px;outline:none;transition:border .2s;-webkit-appearance:none;}
+.field input:focus,.field textarea:focus{border-color:var(--accent);}
+.field textarea{resize:none;line-height:1.5;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+.foto-zone{border:2px dashed var(--border);border-radius:12px;min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--surface);position:relative;overflow:hidden;}
+.foto-zone img{width:100%;max-height:200px;object-fit:cover;border-radius:10px;}
+.foto-btns-row{display:flex;gap:10px;margin-top:10px;}
+.foto-btn{flex:1;padding:10px 0;border-radius:9px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;transition:all .15s;font-family:'Barlow',sans-serif;}
+.foto-btn:active{background:var(--accent);color:#fff;}
+
+.ai-banner{border-radius:9px;padding:9px 14px;display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;}
+
+.prueba-item{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:9px;padding:9px 12px;border:1px solid var(--border);margin-bottom:7px;}
+.prueba-nombre{font-size:13px;flex:1;}
+.prueba-btns{display:flex;gap:5px;}
+.pbtn{font-size:10px;font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;border:1.5px solid transparent;background:transparent;font-family:'Barlow',sans-serif;transition:all .15s;}
+.pbtn.ok{border-color:#00D4AA;color:#00D4AA;}
+.pbtn.def{border-color:#FF6B35;color:#FF6B35;}
+.pbtn.mal{border-color:#FF3B5C;color:#FF3B5C;}
+.pbtn.sel-ok{background:#00D4AA;color:#000;}
+.pbtn.sel-def{background:#FF6B35;color:#fff;}
+.pbtn.sel-mal{background:#FF3B5C;color:#fff;}
+
+.horas-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.horas-btn{width:44px;height:44px;border-radius:10px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.horas-btn:active{background:var(--accent);}
+.horas-val{flex:1;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:34px;color:var(--accent2);}
+.horas-unit{font-size:12px;color:var(--muted);text-align:center;}
+
+.btn-generar{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:552px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:17px;letter-spacing:2px;text-transform:uppercase;border:none;border-radius:13px;padding:17px;cursor:pointer;z-index:200;box-shadow:0 8px 32px rgba(46,142,255,0.35);transition:all .2s;}
+.btn-generar:active{transform:translateX(-50%) scale(0.97);}
+.btn-generar:disabled{opacity:0.5;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:999;opacity:0;pointer-events:none;transition:opacity .3s;}
+.modal-overlay.show{opacity:1;pointer-events:all;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:30px 22px;text-align:center;width:calc(100% - 40px);max-width:340px;transform:translateY(20px);transition:transform .3s;}
+.modal-overlay.show .modal{transform:translateY(0);}
+.modal-icon{font-size:50px;margin-bottom:12px;}
+.modal h2{font-weight:800;font-size:22px;margin-bottom:8px;}
+.modal p{font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.5;}
+.modal-btns{display:flex;flex-direction:column;gap:10px;}
+.modal-btn{padding:13px;border-radius:11px;font-weight:800;font-size:15px;cursor:pointer;border:none;font-family:'Barlow',sans-serif;}
+.modal-btn.primary{background:var(--accent);color:#fff;}
+.modal-btn.secondary{background:var(--surface);color:var(--text);border:1px solid var(--border);}
+
+.hist-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.hist-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;background:rgba(46,142,255,0.15);color:var(--accent);}
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:30px;}
+
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* SETUP */
+.setup-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
+.setup-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:30px 22px;width:100%;max-width:400px;}
+.setup-logo{width:56px;height:56px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#fff;margin:0 auto 16px;}
+.setup-title{text-align:center;font-weight:800;font-size:22px;margin-bottom:6px;}
+.setup-sub{text-align:center;font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.5;}
+.setup-btn{width:100%;padding:14px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:800;font-size:16px;border:none;cursor:pointer;margin-top:8px;font-family:'Barlow',sans-serif;letter-spacing:1px;}
+.setup-link{text-align:center;font-size:11px;color:var(--muted);margin-top:14px;}
+.setup-link a{color:var(--accent);text-decoration:none;}
+.key-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:monospace;font-size:12px;padding:12px;outline:none;margin-top:6px;word-break:break-all;}
+.key-input:focus{border-color:var(--accent);}
+.key-indicator{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:8px;cursor:pointer;}
+.key-indicator span{font-size:14px;}
+</style>
+</head>
+<body>
+
+<!-- SETUP KEY -->
+<div class="setup-overlay" id="setupOverlay" style="display:none">
+  <div class="setup-box">
+    <div class="setup-logo">ST</div>
+    <div class="setup-title">SAT SITGO</div>
+    <div class="setup-sub">Para usar la lectura automática de etiquetas necesitas tu API key de Anthropic. Se guarda solo en tu dispositivo.</div>
+    <div class="field">
+      <label>API Key de Anthropic</label>
+      <input class="key-input" type="password" id="setupKey" placeholder="sk-ant-api03-...">
+    </div>
+    <div class="setup-link">Obtén tu key gratis en <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></div>
+    <button class="setup-btn" onclick="guardarKey()">✅ Guardar y continuar</button>
+  </div>
+</div>
+
+<header>
+  <div class="logo">ST</div>
+  <div class="header-text">
+    <h1>SAT SITGO</h1>
+    <p>GENERADOR DE INFORMES TÉCNICOS</p>
+  </div>
+  <div style="margin-left:auto">
+    <div class="key-indicator" onclick="mostrarSetup()" id="keyIndicator">
+      <span id="keyIcon">⚙️</span>
+      <span id="keyText" style="font-size:10px">API Key</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('nuevo')">+ Nuevo</button>
+    <button class="tab" onclick="showTab('historial')">Historial</button>
+  </div>
+
+  <!-- NUEVO -->
+  <div id="tab-nuevo">
+
+    <!-- FOTO -->
+    <div class="section">
+      <div class="section-title"><span>📸</span> Foto etiqueta del vehículo</div>
+      <input type="file" id="inputCamara" accept="image/*" capture="environment" style="display:none" onchange="handleFoto(this)">
+      <input type="file" id="inputGaleria" accept="image/*" style="display:none" onchange="handleFoto(this)">
+      <div class="foto-zone" id="fotoZone">
+        <span style="font-size:36px">📷</span>
+        <span style="font-size:13px;color:var(--muted)">Selecciona el origen</span>
+        <div class="foto-btns-row">
+          <button class="foto-btn" onclick="document.getElementById('inputCamara').click()">📷 Cámara</button>
+          <button class="foto-btn" onclick="document.getElementById('inputGaleria').click()">🖼️ Galería</button>
+        </div>
+      </div>
+      <div id="aiBanner" style="display:none" class="ai-banner"></div>
+    </div>
+
+    <!-- CLIENTE -->
+    <div class="section">
+      <div class="section-title"><span>👤</span> Datos del cliente</div>
+      <div class="field"><label>Nombre de tu empresa</label><input type="text" id="empresa" value="Sitgo" placeholder="Ej: Sitgo"></div>
+      <div class="field"><label>Cliente / Empresa</label><input type="text" id="cliente" placeholder="Ej: Ortopedia Manolo"></div>
+      <div class="row2">
+        <div class="field"><label>Fecha</label><input type="date" id="fecha"></div>
+        <div class="field"><label>Nº Informe</label><input type="text" id="numInforme" placeholder="2025-001"></div>
+      </div>
+    </div>
+
+    <!-- EQUIPO -->
+    <div class="section">
+      <div class="section-title"><span>🦽</span> Datos del equipo</div>
+      <div class="field"><label>Equipo</label><input type="text" id="equipo" placeholder="Silla de Ruedas Eléctrica"></div>
+      <div class="row2">
+        <div class="field"><label>Modelo</label><input type="text" id="modelo" placeholder="Ej: N5909"></div>
+        <div class="field"><label>Nº Serie (SN)</label><input type="text" id="sn" placeholder="J90251..."></div>
+      </div>
+    </div>
+
+    <!-- PRUEBAS -->
+    <div class="section">
+      <div class="section-title"><span>🔧</span> Pruebas realizadas</div>
+      <div id="pruebasGrid"></div>
+    </div>
+
+    <!-- TRABAJO -->
+    <div class="section">
+      <div class="section-title"><span>🛠</span> Trabajo realizado</div>
+      <div class="field"><label>Reparación realizada</label><textarea id="reparacion" rows="3" placeholder="Describe el trabajo realizado..."></textarea></div>
+      <div class="field"><label>Piezas sustituidas</label><textarea id="piezas" rows="2" placeholder="Lista las piezas sustituidas..."></textarea></div>
+      <div class="field"><label>Observaciones / Recomendaciones</label><textarea id="observaciones" rows="2" placeholder="Observaciones para el cliente..."></textarea></div>
+    </div>
+
+    <!-- HORAS -->
+    <div class="section">
+      <div class="section-title"><span>⏱</span> Tiempo y coste</div>
+      <div class="horas-row">
+        <button class="horas-btn" onclick="cambiarHoras(-0.5)">−</button>
+        <div style="flex:1;text-align:center">
+          <div class="horas-val" id="horasVal">1.0</div>
+          <div class="horas-unit">horas de taller</div>
+        </div>
+        <button class="horas-btn" onclick="cambiarHoras(0.5)">+</button>
+      </div>
+      <div class="field"><label>Coste mano de obra (€)</label><input type="number" id="coste" placeholder="45.00" step="0.01"></div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div id="tab-historial" style="display:none">
+    <div id="historialList"><div class="empty">📋 No hay informes generados aún</div></div>
+  </div>
+</main>
+
+<button class="btn-generar" id="btnGenerar" onclick="generarPDF()">⚡ GENERAR INFORME PDF</button>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-icon">✅</div>
+    <h2>¡Informe generado!</h2>
+    <p>El PDF se ha descargado correctamente.</p>
+    <div class="modal-btns">
+      <button class="modal-btn primary" onclick="nuevoInforme()">+ Nuevo informe</button>
+      <button class="modal-btn secondary" onclick="cerrarModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let API_KEY = localStorage.getItem('sat_apikey') || '';
+
+const PRUEBAS = [
+  "Prueba electrónica / centralita",
+  "Estado de batería",
+  "Cargador y carga",
+  "Puerto / conector de carga",
+  "Joystick / mandos",
+  "Prueba dinámica (marcha)",
+  "Frenos / seguridad",
+  "Revisión general (tornillería)",
+];
+
+let estados = {};
+let horas = 1.0;
+let fotoDataUrl = null;
+let historial = JSON.parse(localStorage.getItem('sat_hist') || '[]');
+
+// ── Init ──────────────────────────────────────────────
+window.onload = () => {
+  document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+  const n = (historial.length + 1).toString().padStart(3,'0');
+  document.getElementById('numInforme').value = `${new Date().getFullYear()}-${n}`;
+  PRUEBAS.forEach(p => estados[p] = 'OK');
+  renderPruebas();
+  renderHistorial();
+  actualizarKeyIndicator();
+  if (!API_KEY) mostrarSetup();
+};
+
+function mostrarSetup() {
+  document.getElementById('setupOverlay').style.display = 'flex';
+  if (API_KEY) document.getElementById('setupKey').value = API_KEY;
+}
+
+function guardarKey() {
+  const key = document.getElementById('setupKey').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    alert('La key no parece válida. Debe empezar por sk-ant-...');
+    return;
+  }
+  API_KEY = key;
+  localStorage.setItem('sat_apikey', key);
+  document.getElementById('setupOverlay').style.display = 'none';
+  actualizarKeyIndicator();
+}
+
+function actualizarKeyIndicator() {
+  const icon = document.getElementById('keyIcon');
+  const text = document.getElementById('keyText');
+  if (API_KEY) {
+    icon.textContent = '🔑';
+    text.textContent = 'Key ✓';
+    text.style.color = '#00D4AA';
+  } else {
+    icon.textContent = '⚠️';
+    text.textContent = 'Sin key';
+    text.style.color = '#FF6B35';
+  }
+}
+
+function renderPruebas() {
+  const grid = document.getElementById('pruebasGrid');
+  grid.innerHTML = '';
+  PRUEBAS.forEach(nombre => {
+    const div = document.createElement('div');
+    div.className = 'prueba-item';
+    div.innerHTML = `
+      <span class="prueba-nombre">${nombre}</span>
+      <div class="prueba-btns">
+        <button class="pbtn ok ${estados[nombre]==='OK'?'sel-ok':''}" onclick="setEstado('${nombre}','OK',this.parentElement)">OK</button>
+        <button class="pbtn def ${estados[nombre]==='DEF'?'sel-def':''}" onclick="setEstado('${nombre}','DEF',this.parentElement)">DEF</button>
+        <button class="pbtn mal ${estados[nombre]==='MAL'?'sel-mal':''}" onclick="setEstado('${nombre}','MAL',this.parentElement)">MAL</button>
+      </div>`;
+    grid.appendChild(div);
+  });
+}
+
+function setEstado(nombre, val, btns) {
+  estados[nombre] = val;
+  const clsMap = { OK:'sel-ok', DEF:'sel-def', MAL:'sel-mal' };
+  btns.querySelectorAll('.pbtn').forEach(b => {
+    ['sel-ok','sel-def','sel-mal'].forEach(c => b.classList.remove(c));
+  });
+  const idx = { OK:0, DEF:1, MAL:2 }[val];
+  btns.children[idx].classList.add(clsMap[val]);
+}
+
+function cambiarHoras(d) {
+  horas = Math.max(0.5, Math.round((horas + d) * 2) / 2);
+  document.getElementById('horasVal').textContent = horas.toFixed(1);
+}
+
+// ── Foto ──────────────────────────────────────────────
+function handleFoto(input) {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    fotoDataUrl = e.target.result;
+    const zone = document.getElementById('fotoZone');
+    zone.innerHTML = `
+      <img src="${fotoDataUrl}" alt="Etiqueta">
+      <div class="foto-btns-row">
+        <button class="foto-btn" onclick="document.getElementById('inputCamara').click()">📷 Cámara</button>
+        <button class="foto-btn" onclick="document.getElementById('inputGaleria').click()">🖼️ Galería</button>
+      </div>`;
+    await leerEtiqueta(fotoDataUrl);
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function setBanner(type, msg) {
+  const b = document.getElementById('aiBanner');
+  const cfg = {
+    loading: { bg:'rgba(46,142,255,0.15)', border:'#2E8EFF', color:'#2E8EFF' },
+    ok:      { bg:'rgba(0,212,170,0.15)',  border:'#00D4AA', color:'#00D4AA' },
+    error:   { bg:'rgba(255,107,53,0.15)', border:'#FF6B35', color:'#FF6B35' },
+  }[type];
+  b.style.display = 'flex';
+  b.style.background = cfg.bg;
+  b.style.border = `1px solid ${cfg.border}`;
+  b.style.color = cfg.color;
+  b.innerHTML = msg;
+}
+
+async function leerEtiqueta(dataUrl) {
+  setBanner('loading', '<div class="spinner"></div><span>Leyendo etiqueta con IA...</span>');
+  try {
+    const [meta, base64] = dataUrl.split(',');
+    const mediaType = meta.match(/:(.*?);/)[1];
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'text', text: 'Analiza esta etiqueta de producto (silla de ruedas eléctrica u otro vehículo de movilidad) y extrae estos datos en JSON puro sin markdown ni texto extra:\n{"equipo":"nombre completo del producto","modelo":"código de modelo","sn":"número de serie completo","lot":"lote si existe"}\nSi no encuentras algún dato pon cadena vacía. Solo el JSON.' }
+          ]
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.map(c => c.text || '').join('') || '';
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+
+    if (parsed.equipo) document.getElementById('equipo').value = parsed.equipo;
+    if (parsed.modelo) document.getElementById('modelo').value = parsed.modelo;
+    if (parsed.sn)     document.getElementById('sn').value = parsed.sn;
+
+    setBanner('ok', '<span>✅</span><span>Etiqueta leída correctamente</span>');
+    setTimeout(() => { document.getElementById('aiBanner').style.display='none'; }, 3000);
+
+  } catch(err) {
+    setBanner('error', '<span>⚠️</span><span>No se pudo leer — revisa los campos manualmente</span>');
+    setTimeout(() => { document.getElementById('aiBanner').style.display='none'; }, 4000);
+  }
+}
+
+// ── Generar PDF ───────────────────────────────────────
+async function generarPDF() {
+  document.getElementById('btnGenerar').disabled = true;
+
+  const empresa = document.getElementById('empresa').value || 'Sitgo';
+  const cliente = document.getElementById('cliente').value || 'Cliente';
+  const fecha   = document.getElementById('fecha').value;
+  const num     = document.getElementById('numInforme').value;
+  const equipo  = document.getElementById('equipo').value || '—';
+  const modelo  = document.getElementById('modelo').value || '—';
+  const sn      = document.getElementById('sn').value || '—';
+  const rep     = document.getElementById('reparacion').value || '—';
+  const piezas  = document.getElementById('piezas').value || '—';
+  const obs     = document.getElementById('observaciones').value || '—';
+  const coste   = document.getElementById('coste').value ? document.getElementById('coste').value + ' €' : 'Por determinar';
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const W = 210, H = 297;
+
+  const sh = (x, y, w, txt) => {
+    doc.setFillColor(26,58,92); doc.rect(x, y-4, w, 7, 'F');
+    doc.setFillColor(46,142,255); doc.rect(x, y-4, 3, 7, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(232,240,250);
+    doc.text(txt, x+5, y+0.5);
+  };
+
+  // Cabecera
+  doc.setFillColor(15,25,35); doc.rect(0,0,W,28,'F');
+  doc.setFillColor(46,142,255); doc.rect(0,0,6,28,'F');
+  doc.setTextColor(232,240,250); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+  doc.text('INFORME DE SERVICIO TÉCNICO', 12, 12);
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(122,146,172);
+  doc.text(`${empresa.toUpperCase()}  ·  Documento de diagnóstico / revisión`, 12, 19);
+  doc.setTextColor(232,240,250); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(`Nº ${num}`, W-12, 12, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(122,146,172);
+  doc.text(fecha, W-12, 19, {align:'right'});
+
+  let y = 34;
+  const fW=58, fH=52, fX=W-12-fW;
+
+  if (fotoDataUrl) {
+    doc.setFillColor(30,45,64); doc.roundedRect(fX-1,y-1,fW+2,fH+2,2,2,'F');
+    doc.addImage(fotoDataUrl,'JPEG',fX,y,fW,fH);
+    doc.setFontSize(7); doc.setTextColor(122,146,172);
+    doc.text('FOTO ETIQUETA', fX+fW/2, y+fH+4, {align:'center'});
+  }
+
+  const bW = fX-16;
+  sh(12, y, bW, '  DATOS DEL CLIENTE Y EQUIPO'); y+=8;
+  [['Cliente:',cliente],['Fecha:',fecha],['Equipo:',equipo],['Modelo:',modelo],['Nº Serie:',sn]].forEach(([l,v],i) => {
+    if(i%2===0){doc.setFillColor(23,32,48);doc.rect(12,y-4,bW,7,'F');}
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(122,146,172);doc.text(l,14,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(232,240,250);doc.text(v,50,y);
+    y+=8;
+  });
+  y = Math.max(y, 34+fH+10)+4;
+
+  sh(12, y, W-24, '  PRUEBAS REALIZADAS'); y+=8;
+  const cW=(W-24)/2;
+  PRUEBAS.forEach((nombre,i) => {
+    const col=i%2, row=Math.floor(i/2);
+    const px=12+col*(cW+2), py=y+row*10;
+    doc.setFillColor(col%2===0?23:30, col%2===0?32:45, col%2===0?48:64);
+    doc.rect(px,py-3,cW-1,9,'F');
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(232,240,250);
+    doc.text(nombre,px+2,py+2.5);
+    const est=estados[nombre];
+    const ec={OK:[0,212,170],DEF:[255,107,53],MAL:[255,59,92]}[est];
+    doc.setFillColor(...ec);doc.roundedRect(px+cW-22,py-1,20,7,1,1,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);
+    doc.setTextColor(est==='OK'?0:255,est==='OK'?0:255,est==='OK'?0:255);
+    doc.text(est,px+cW-12,py+3.5,{align:'center'});
+  });
+  y+=Math.ceil(PRUEBAS.length/2)*10+6;
+
+  sh(12,y,W-24,'  REPARACIÓN REALIZADA');y+=8;
+  doc.setFillColor(23,32,48);doc.rect(12,y-3,W-24,22,'F');
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(232,240,250);
+  doc.text(doc.splitTextToSize(rep,W-30).slice(0,3),15,y+3);
+  y+=24;
+
+  sh(12,y,W-24,'  PIEZAS SUSTITUIDAS');y+=8;
+  doc.setFillColor(23,32,48);doc.rect(12,y-3,W-24,16,'F');
+  piezas.split('\n').slice(0,2).forEach((l,i)=>{
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(232,240,250);
+    doc.text(`• ${l}`,15,y+3+i*6);
+  });
+  y+=18;
+
+  sh(12,y,W-24,'  OBSERVACIONES / RECOMENDACIONES');y+=8;
+  doc.setFillColor(40,35,15);doc.rect(12,y-3,W-24,14,'F');
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(232,240,250);
+  doc.text(doc.splitTextToSize(obs,W-30).slice(0,2),15,y+3);
+  y+=16;
+
+  sh(12,y,W-24,'  TIEMPO Y COSTE');y+=8;
+  const half=(W-24)/2;
+  doc.setFillColor(46,142,255);doc.roundedRect(12,y-3,half-2,20,2,2,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(200,220,255);
+  doc.text('HORAS A FACTURAR',12+(half-2)/2,y+3,{align:'center'});
+  doc.setFontSize(20);doc.setTextColor(255,255,255);
+  doc.text(`${horas.toFixed(1)} h`,12+(half-2)/2,y+13,{align:'center'});
+  doc.setFillColor(15,25,35);doc.roundedRect(12+half,y-3,half-2,20,2,2,'F');
+  doc.setFillColor(46,142,255);doc.rect(12+half,y-3,3,20,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(122,146,172);
+  doc.text('COSTE MANO DE OBRA',12+half+(half-2)/2,y+3,{align:'center'});
+  doc.setFontSize(14);doc.setTextColor(0,212,170);
+  doc.text(coste,12+half+(half-2)/2,y+13,{align:'center'});
+
+  doc.setFillColor(15,25,35);doc.rect(0,H-12,W,12,'F');
+  doc.setFillColor(46,142,255);doc.rect(0,H-12,W,1.5,'F');
+  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(122,146,172);
+  doc.text(`Informe SAT  ·  Documento para uso interno y cliente  ·  ${empresa}`,W/2,H-5,{align:'center'});
+
+  const clean = s => s.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'');
+  const fname = `Informe_${clean(modelo)}_${clean(empresa)}_${clean(cliente)}_${fecha}.pdf`;
+  doc.save(fname);
+
+  historial.unshift({cliente,empresa,modelo,sn,fecha,num,fname,ts:Date.now()});
+  if(historial.length>20) historial.pop();
+  localStorage.setItem('sat_hist', JSON.stringify(historial));
+  renderHistorial();
+
+  document.getElementById('btnGenerar').disabled = false;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+// ── UI ────────────────────────────────────────────────
+function showTab(tab) {
+  document.getElementById('tab-nuevo').style.display = tab==='nuevo'?'block':'none';
+  document.getElementById('tab-historial').style.display = tab==='historial'?'block':'none';
+  document.getElementById('btnGenerar').style.display = tab==='nuevo'?'block':'none';
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(i===0)===(tab==='nuevo')));
+  if(tab==='historial') renderHistorial();
+}
+
+function nuevoInforme() {
+  cerrarModal();
+  fotoDataUrl = null;
+  document.getElementById('fotoZone').innerHTML = `
+    <span style="font-size:36px">📷</span>
+    <span style="font-size:13px;color:var(--muted)">Selecciona el origen</span>
+    <div class="foto-btns-row">
+      <button class="foto-btn" onclick="document.getElementById('inputCamara').click()">📷 Cámara</button>
+      <button class="foto-btn" onclick="document.getElementById('inputGaleria').click()">🖼️ Galería</button>
+    </div>`;
+  document.getElementById('aiBanner').style.display='none';
+  ['cliente','equipo','modelo','sn','reparacion','piezas','observaciones','coste'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  const n = (historial.length+1).toString().padStart(3,'0');
+  document.getElementById('numInforme').value = `${new Date().getFullYear()}-${n}`;
+  document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+  horas=1; document.getElementById('horasVal').textContent='1.0';
+  PRUEBAS.forEach(p=>estados[p]='OK');
+  renderPruebas();
+}
+
+function cerrarModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function renderHistorial() {
+  const list = document.getElementById('historialList');
+  if(!historial.length){
+    list.innerHTML='<div class="empty">📋 No hay informes generados aún</div>';
+    return;
+  }
+  list.innerHTML = historial.map(h=>`
+    <div class="hist-item">
+      <div>
+        <div style="font-size:14px;font-weight:600">${h.cliente} — ${h.modelo}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">SN: ${h.sn} · ${h.fecha} · ${h.empresa}</div>
+      </div>
+      <div class="hist-badge">PDF</div>
+    </div>`).join('');
+}
+</script>
+</body>
+</html>
