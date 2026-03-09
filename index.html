@@ -111,8 +111,9 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
 .setup-link a{color:var(--accent);text-decoration:none;}
 .key-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:monospace;font-size:12px;padding:12px;outline:none;margin-top:6px;word-break:break-all;}
 .key-input:focus{border-color:var(--accent);}
-.key-indicator{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:8px;cursor:pointer;}
-.key-indicator span{font-size:14px;}
+.btn-voz{width:100%;padding:16px;border-radius:13px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;letter-spacing:2px;border:none;cursor:pointer;transition:all .2s;box-shadow:0 4px 20px rgba(231,76,60,0.4);}
+.btn-voz.grabando{background:linear-gradient(135deg,#922b21,#c0392b);animation:pulse-red 1s infinite;}
+@keyframes pulse-red{0%,100%{box-shadow:0 4px 20px rgba(231,76,60,0.4);}50%{box-shadow:0 4px 30px rgba(231,76,60,0.8);}}
 </style>
 </head>
 <body>
@@ -169,6 +170,15 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
         </div>
       </div>
       <div id="aiBanner" style="display:none" class="ai-banner"></div>
+    </div>
+
+    <!-- DICTADO POR VOZ -->
+    <div class="section" id="seccionVoz">
+      <div class="section-title"><span>🎤</span> Dictado por voz</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">Pulsa el botón y habla libremente. Por ejemplo:<br><em>"Cliente Ortopedia Manolo, hemos cambiado el joystick y revisado la batería, piezas sustituidas joystick modelo X, observaciones revisar en 3 meses"</em></div>
+      <button class="btn-voz" id="btnVoz" onclick="iniciarDictado()">🎤 Iniciar dictado</button>
+      <div id="vozStatus" style="font-size:12px;color:var(--muted);text-align:center;margin-top:8px;min-height:18px"></div>
+      <div id="vozTexto" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px;margin-top:10px;font-size:13px;line-height:1.5;color:var(--text)"></div>
     </div>
 
     <!-- CLIENTE -->
@@ -342,7 +352,125 @@ function cambiarHoras(d) {
   document.getElementById('horasVal').textContent = horas.toFixed(1);
 }
 
-// ── Foto ──────────────────────────────────────────────
+// ── Voz ───────────────────────────────────────────────
+let reconocimiento = null;
+let grabando = false;
+
+function iniciarDictado() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    document.getElementById('vozStatus').textContent = '⚠️ Tu navegador no soporta reconocimiento de voz. Usa Chrome.';
+    return;
+  }
+
+  if (grabando) {
+    reconocimiento.stop();
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  reconocimiento = new SpeechRecognition();
+  reconocimiento.lang = 'es-ES';
+  reconocimiento.continuous = true;
+  reconocimiento.interimResults = true;
+  reconocimiento.maxAlternatives = 1;
+
+  const btn = document.getElementById('btnVoz');
+  const status = document.getElementById('vozStatus');
+  const textoDiv = document.getElementById('vozTexto');
+
+  reconocimiento.onstart = () => {
+    grabando = true;
+    btn.textContent = '⏹ Detener dictado';
+    btn.classList.add('grabando');
+    status.textContent = '🔴 Grabando... habla ahora';
+    textoDiv.style.display = 'none';
+  };
+
+  let textoFinal = '';
+  reconocimiento.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) textoFinal += e.results[i][0].transcript + ' ';
+      else interim += e.results[i][0].transcript;
+    }
+    status.textContent = interim ? `🔴 "${interim}"` : '🔴 Grabando...';
+  };
+
+  reconocimiento.onend = () => {
+    grabando = false;
+    btn.textContent = '🎤 Iniciar dictado';
+    btn.classList.remove('grabando');
+    if (textoFinal.trim()) {
+      textoDiv.style.display = 'block';
+      textoDiv.textContent = textoFinal.trim();
+      status.textContent = '⏳ Procesando con IA...';
+      procesarDictadoIA(textoFinal.trim());
+    } else {
+      status.textContent = '⚠️ No se detectó audio — intenta de nuevo';
+    }
+  };
+
+  reconocimiento.onerror = (e) => {
+    grabando = false;
+    btn.textContent = '🎤 Iniciar dictado';
+    btn.classList.remove('grabando');
+    status.textContent = `⚠️ Error: ${e.error}`;
+  };
+
+  reconocimiento.start();
+}
+
+async function procesarDictadoIA(texto) {
+  if (!API_KEY) { document.getElementById('vozStatus').textContent = '⚠️ Necesitas configurar la API key'; return; }
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: `Eres un asistente para informes de servicio técnico de sillas de ruedas.
+Analiza este dictado por voz y extrae los datos en JSON puro sin markdown:
+{"cliente":"nombre del cliente o empresa","reparacion":"descripción del trabajo realizado","piezas":"piezas sustituidas (separadas por comas si hay varias)","observaciones":"observaciones o recomendaciones"}
+Si no encuentras algún dato deja la cadena vacía.
+Responde SOLO el JSON.
+
+Dictado: "${texto}"`
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const raw = data.content?.map(c => c.text || '').join('') || '';
+    let parsed = {};
+    try {
+      parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    } catch {
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) try { parsed = JSON.parse(match[0]); } catch {}
+    }
+
+    if (parsed.cliente)       document.getElementById('cliente').value = parsed.cliente;
+    if (parsed.reparacion)    document.getElementById('reparacion').value = parsed.reparacion;
+    if (parsed.piezas)        document.getElementById('piezas').value = parsed.piezas;
+    if (parsed.observaciones) document.getElementById('observaciones').value = parsed.observaciones;
+
+    document.getElementById('vozStatus').textContent = '✅ Campos rellenados automáticamente';
+
+  } catch(e) {
+    document.getElementById('vozStatus').textContent = '❌ Error al procesar — rellena los campos manualmente';
+  }
+}
+
+// ── Voz ───────────────────────────────────────────────
 function handleFoto(input) {
   if (!input.files[0]) return;
   const reader = new FileReader();
