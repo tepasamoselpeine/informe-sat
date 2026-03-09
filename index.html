@@ -139,7 +139,10 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
     <h1>SAT SITGO</h1>
     <p>GENERADOR DE INFORMES TÉCNICOS</p>
   </div>
-  <div style="margin-left:auto">
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+    <div id="driveIndicator" onclick="cerrarSesionDrive()" style="display:none;cursor:pointer;font-size:10px;color:#00D4AA;display:flex;align-items:center;gap:4px">
+      <span>☁️</span><span id="driveIndText">Drive ✓</span>
+    </div>
     <div class="key-indicator" onclick="mostrarSetup()" id="keyIndicator">
       <span id="keyIcon">⚙️</span>
       <span id="keyText" style="font-size:10px">API Key</span>
@@ -285,6 +288,7 @@ window.onload = () => {
   renderPruebas();
   renderHistorial();
   actualizarKeyIndicator();
+  actualizarDriveIndicator();
   if (!API_KEY) mostrarSetup();
 };
 
@@ -884,6 +888,7 @@ function guardarDriveToken(token) {
   driveTokenExpiry = Date.now() + 55 * 60 * 1000; // 55 minutos
   localStorage.setItem('sat_drive_token', token);
   localStorage.setItem('sat_drive_expiry', driveTokenExpiry.toString());
+  actualizarDriveIndicator();
 }
 
 function limpiarDriveToken() {
@@ -891,6 +896,23 @@ function limpiarDriveToken() {
   driveTokenExpiry = 0;
   localStorage.removeItem('sat_drive_token');
   localStorage.removeItem('sat_drive_expiry');
+  actualizarDriveIndicator();
+}
+
+function cerrarSesionDrive() {
+  if (confirm('¿Cerrar sesión de Google Drive?')) {
+    limpiarDriveToken();
+  }
+}
+
+function actualizarDriveIndicator() {
+  const el = document.getElementById('driveIndicator');
+  if (driveTokenValido()) {
+    el.style.display = 'flex';
+    document.getElementById('driveIndText').textContent = 'Drive ✓';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 function subirDrive() {
