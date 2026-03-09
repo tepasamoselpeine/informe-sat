@@ -9,6 +9,11 @@
 <title>SAT SITGO · Informes</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+  const GOOGLE_CLIENT_ID = '1084917446807-pfje4ae7njdris5uba2mmj9oupaonjb6.apps.googleusercontent.com';
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+</script>
 <style>
 :root {
   --bg:#0F1923; --surface:#172030; --card:#1E2D40; --border:#2A3D55;
@@ -86,6 +91,12 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
 
 .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+.drive-btn{width:100%;padding:13px;border-radius:11px;background:#1a73e8;color:#fff;font-weight:700;font-size:14px;border:none;cursor:pointer;margin-top:8px;font-family:'Barlow',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;}
+.drive-btn:disabled{opacity:0.5;}
+.drive-status{font-size:11px;text-align:center;margin-top:6px;color:var(--muted);}
+.drive-status.ok{color:var(--accent2);}
+.drive-status.error{color:var(--danger);}
 
 /* SETUP */
 .setup-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
@@ -222,6 +233,11 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
     <h2>¡Informe generado!</h2>
     <p>El PDF se ha descargado correctamente.</p>
     <div class="modal-btns">
+      <button class="drive-btn" id="btnDrive" onclick="subirDrive()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M6.28 3L1 12.5l3.14 5.5h15.72L23 12.5 17.72 3H6.28zm-.64 1.5h12.72l4.28 7.5H1.36L5.64 4.5zM4.14 19L2 15.5h20l-2.14 3.5H4.14z"/></svg>
+        Subir a Google Drive
+      </button>
+      <div class="drive-status" id="driveStatus"></div>
       <button class="modal-btn primary" onclick="nuevoInforme()">+ Nuevo informe</button>
       <button class="modal-btn secondary" onclick="cerrarModal()">Cerrar</button>
     </div>
@@ -373,8 +389,8 @@ function comprimirImagen(dataUrl, maxSize, calidad) {
 async function leerEtiqueta(dataUrl) {
   setBanner('loading', '<div class="spinner"></div><span>Leyendo etiqueta con IA...</span>');
   try {
-    // Comprimir imagen antes de enviar
-    const comprimida = await comprimirImagen(dataUrl, 1024, 0.8);
+    // Comprimir imagen antes de enviar — resolución alta para mejor OCR
+    const comprimida = await comprimirImagen(dataUrl, 1600, 0.92);
     const [meta, base64] = comprimida.split(',');
     const mediaType = meta.match(/:(.*?);/)[1];
 
@@ -394,7 +410,17 @@ async function leerEtiqueta(dataUrl) {
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-            { type: 'text', text: 'Analiza esta etiqueta de producto (silla de ruedas eléctrica u otro vehículo de movilidad) y extrae estos datos en JSON puro sin markdown ni texto extra:\n{"equipo":"nombre completo del producto","modelo":"código de modelo","sn":"número de serie completo","lot":"lote si existe"}\nSi no encuentras algún dato pon cadena vacía. Solo el JSON.' }
+            { type: 'text', text: `Eres un experto en leer etiquetas de productos de movilidad (sillas de ruedas eléctricas, scooters, etc).
+
+Analiza la imagen con MÁXIMO DETALLE y extrae estos datos en JSON puro sin markdown:
+{"equipo":"nombre completo del producto en la etiqueta","modelo":"código de modelo exacto (busca MODEL, MOD, REF o similar)","sn":"número de serie COMPLETO y EXACTO (busca SN, S/N, Serial, Serie, Nº Serie)","lot":"número de lote si existe (busca LOT, Lote, Batch)"}
+
+INSTRUCCIONES IMPORTANTES:
+- El número de serie (SN) suele ser alfanumérico, puede contener letras y números mezclados
+- Lee caracter por caracter, no confundas O con 0, I con 1, B con 8
+- Si el texto está girado o torcido, intenta leerlo igualmente
+- Si hay código de barras, el número debajo suele ser el SN
+- Devuelve SOLO el JSON, sin explicaciones ni texto extra.` }
           ]
         }]
       })
@@ -537,6 +563,10 @@ async function generarPDF() {
   const fname = `Informe_${clean(modelo)}_${clean(empresa)}_${clean(cliente)}_${fecha}.pdf`;
   doc.save(fname);
 
+  // Guardar blob para Drive
+  ultimoPdfBlob = doc.output('blob');
+  ultimoNombrePdf = fname;
+
   historial.unshift({cliente,empresa,modelo,sn,fecha,num,fname,ts:Date.now()});
   if(historial.length>20) historial.pop();
   localStorage.setItem('sat_hist', JSON.stringify(historial));
@@ -546,7 +576,99 @@ async function generarPDF() {
   document.getElementById('modalOverlay').classList.add('show');
 }
 
-// ── UI ────────────────────────────────────────────────
+// ── Google Drive ──────────────────────────────────────
+let driveToken = null;
+let ultimoPdfBlob = null;
+let ultimoNombrePdf = null;
+
+function subirDrive() {
+  if (!driveToken) {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      callback: async (response) => {
+        if (response.error) {
+          mostrarDriveStatus('error', '❌ Error de autenticación');
+          return;
+        }
+        driveToken = response.access_token;
+        await uploadToDrive();
+      }
+    });
+    client.requestAccessToken();
+  } else {
+    uploadToDrive();
+  }
+}
+
+async function uploadToDrive() {
+  if (!ultimoPdfBlob) {
+    mostrarDriveStatus('error', '❌ No hay PDF generado');
+    return;
+  }
+
+  document.getElementById('btnDrive').disabled = true;
+  mostrarDriveStatus('', '⏳ Subiendo a Drive...');
+
+  try {
+    // Buscar o crear carpeta SAT Informes
+    let folderId = await buscarCarpetaDrive('SAT Informes');
+    if (!folderId) folderId = await crearCarpetaDrive('SAT Informes');
+
+    // Subir PDF
+    const metadata = {
+      name: ultimoNombrePdf,
+      parents: [folderId],
+      mimeType: 'application/pdf'
+    };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', ultimoPdfBlob);
+
+    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${driveToken}` },
+      body: form
+    });
+
+    if (res.ok) {
+      mostrarDriveStatus('ok', '✅ Guardado en Drive → carpeta "SAT Informes"');
+    } else {
+      throw new Error('Upload failed');
+    }
+  } catch(e) {
+    driveToken = null;
+    mostrarDriveStatus('error', '❌ Error al subir — intenta de nuevo');
+  }
+  document.getElementById('btnDrive').disabled = false;
+}
+
+async function buscarCarpetaDrive(nombre) {
+  const q = encodeURIComponent(`name='${nombre}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}`, {
+    headers: { Authorization: `Bearer ${driveToken}` }
+  });
+  const data = await res.json();
+  return data.files?.[0]?.id || null;
+}
+
+async function crearCarpetaDrive(nombre) {
+  const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${driveToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: nombre, mimeType: 'application/vnd.google-apps.folder' })
+  });
+  const data = await res.json();
+  return data.id;
+}
+
+function mostrarDriveStatus(tipo, msg) {
+  const el = document.getElementById('driveStatus');
+  el.textContent = msg;
+  el.className = 'drive-status' + (tipo ? ` ${tipo}` : '');
+}
+
+// ── Google Drive ──────────────────────────────────────
 function showTab(tab) {
   document.getElementById('tab-nuevo').style.display = tab==='nuevo'?'block':'none';
   document.getElementById('tab-historial').style.display = tab==='historial'?'block':'none';
