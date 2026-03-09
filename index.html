@@ -433,12 +433,13 @@ async function leerEtiqueta(dataUrl) {
 La etiqueta puede estar girada 90, 180 o 270 grados. Lee el texto en cualquier orientación.
 
 Extrae EXACTAMENTE estos campos en JSON puro sin markdown ni texto adicional:
-{"equipo":"nombre del producto (busca PowerWheelchair, Silla de Ruedas, Scooter, etc)","modelo":"código de modelo EXACTO (busca MODEL, MODELO, MOD)","sn":"número de serie COMPLETO (busca SN, S/N, Serial Number — suele ser largo, alfanumérico)","lot":"lote (busca LOT, Lote, Batch)"}
+{"equipo":"nombre del producto (busca PowerWheelchair, Silla de Ruedas, Scooter, etc)","modelo":"código de modelo CORTO (busca la palabra MODEL o MODELO seguida de su valor — suele ser corto, ej: N5909, Q500, S-ERGO)","sn":"número de serie COMPLETO y LARGO (busca SN o S/N seguido de su valor — suele empezar por letra y tener más de 10 caracteres, ej: D172804909023006)","lot":"lote (busca LOT seguido de su valor, ej: 2023-05)"}
 
 REGLAS CRÍTICAS:
-- Copia el SN exactamente como aparece, carácter por carácter
+- MODELO y SN son campos DISTINTOS en la etiqueta, busca sus etiquetas específicas
+- El MODELO suele ser corto (4-8 caracteres)
+- El SN suele ser largo (10-20 caracteres), frecuentemente bajo un código de barras
 - No confundas: O(letra) con 0(cero), I(letra) con 1(uno), B con 8, S con 5
-- El SN puede estar bajo un código de barras
 - Si un dato no existe, pon cadena vacía ""
 - Responde ÚNICAMENTE con el JSON, nada más` }
           ]
