@@ -448,11 +448,28 @@ REGLAS CRÍTICAS:
 
     const data = await res.json();
     const text = data.content?.map(c => c.text || '').join('') || '';
-    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
 
-    if (parsed.equipo) document.getElementById('equipo').value = parsed.equipo;
-    if (parsed.modelo) document.getElementById('modelo').value = parsed.modelo;
-    if (parsed.sn)     document.getElementById('sn').value = parsed.sn;
+    // Parseo robusto — extrae JSON aunque venga con texto extra
+    let parsed = {};
+    try {
+      const clean = text.replace(/```json|```/g,'').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      // Intentar extraer JSON con regex si falla el parseo directo
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { parsed = JSON.parse(match[0]); } catch {}
+      }
+    }
+
+    // Rellenar campos — acepta cualquier variante de clave
+    const equipo = parsed.equipo || parsed.product || parsed.nombre || parsed.name || '';
+    const modelo = parsed.modelo || parsed.model || parsed.mod || parsed.ref || '';
+    const sn     = parsed.sn || parsed.serial || parsed.serie || parsed.serialNumber || parsed.numero_serie || '';
+
+    if (equipo) document.getElementById('equipo').value = equipo;
+    if (modelo) document.getElementById('modelo').value = modelo;
+    if (sn)     document.getElementById('sn').value = sn;
 
     setBanner('ok', '<span>✅</span><span>Etiqueta leída correctamente</span>');
     setTimeout(() => { document.getElementById('aiBanner').style.display='none'; }, 3000);
