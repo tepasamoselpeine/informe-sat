@@ -376,10 +376,28 @@ function comprimirImagen(dataUrl, maxSize, calidad) {
     img.onload = () => {
       const canvas = document.createElement('canvas');
       let w = img.width, h = img.height;
-      if (w > h && w > maxSize) { h = h * maxSize / w; w = maxSize; }
-      else if (h > maxSize) { w = w * maxSize / h; h = maxSize; }
+
+      // Auto-rotar si la imagen es más alta que ancha (foto vertical de etiqueta horizontal)
+      let rotar = false;
+      if (h > w * 1.2) { rotar = true; }
+
+      if (rotar) {
+        // Rotar 90 grados para enderezar etiquetas giradas
+        let tmp = w; w = h; h = tmp;
+      }
+
+      if (w > maxSize) { h = h * maxSize / w; w = maxSize; }
       canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const ctx = canvas.getContext('2d');
+
+      if (rotar) {
+        ctx.translate(w, 0);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(img, 0, 0, h, w);
+      } else {
+        ctx.drawImage(img, 0, 0, w, h);
+      }
+
       resolve(canvas.toDataURL('image/jpeg', calidad));
     };
     img.src = dataUrl;
@@ -410,17 +428,19 @@ async function leerEtiqueta(dataUrl) {
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-            { type: 'text', text: `Eres un experto en leer etiquetas de productos de movilidad (sillas de ruedas eléctricas, scooters, etc).
+            { type: 'text', text: `Eres un experto en leer etiquetas de sillas de ruedas eléctricas y vehículos de movilidad.
 
-Analiza la imagen con MÁXIMO DETALLE y extrae estos datos en JSON puro sin markdown:
-{"equipo":"nombre completo del producto en la etiqueta","modelo":"código de modelo exacto (busca MODEL, MOD, REF o similar)","sn":"número de serie COMPLETO y EXACTO (busca SN, S/N, Serial, Serie, Nº Serie)","lot":"número de lote si existe (busca LOT, Lote, Batch)"}
+La etiqueta puede estar girada 90, 180 o 270 grados. Lee el texto en cualquier orientación.
 
-INSTRUCCIONES IMPORTANTES:
-- El número de serie (SN) suele ser alfanumérico, puede contener letras y números mezclados
-- Lee caracter por caracter, no confundas O con 0, I con 1, B con 8
-- Si el texto está girado o torcido, intenta leerlo igualmente
-- Si hay código de barras, el número debajo suele ser el SN
-- Devuelve SOLO el JSON, sin explicaciones ni texto extra.` }
+Extrae EXACTAMENTE estos campos en JSON puro sin markdown ni texto adicional:
+{"equipo":"nombre del producto (busca PowerWheelchair, Silla de Ruedas, Scooter, etc)","modelo":"código de modelo EXACTO (busca MODEL, MODELO, MOD)","sn":"número de serie COMPLETO (busca SN, S/N, Serial Number — suele ser largo, alfanumérico)","lot":"lote (busca LOT, Lote, Batch)"}
+
+REGLAS CRÍTICAS:
+- Copia el SN exactamente como aparece, carácter por carácter
+- No confundas: O(letra) con 0(cero), I(letra) con 1(uno), B con 8, S con 5
+- El SN puede estar bajo un código de barras
+- Si un dato no existe, pon cadena vacía ""
+- Responde ÚNICAMENTE con el JSON, nada más` }
           ]
         }]
       })
