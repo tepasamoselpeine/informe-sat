@@ -432,16 +432,21 @@ async function leerEtiqueta(dataUrl) {
 
 La etiqueta puede estar girada 90, 180 o 270 grados. Lee el texto en cualquier orientación.
 
-Extrae EXACTAMENTE estos campos en JSON puro sin markdown ni texto adicional:
-{"equipo":"nombre del producto (busca PowerWheelchair, Silla de Ruedas, Scooter, etc)","modelo":"código de modelo CORTO (busca la palabra MODEL o MODELO seguida de su valor — suele ser corto, ej: N5909, Q500, S-ERGO)","sn":"número de serie COMPLETO y LARGO (busca SN o S/N seguido de su valor — suele empezar por letra y tener más de 10 caracteres, ej: D172804909023006)","lot":"lote (busca LOT seguido de su valor, ej: 2023-05)"}
+En estas etiquetas los campos aparecen así:
+- MODELO: seguido del valor (ej: MODELO:N5909 → modelo es N5909)
+- SN | seguido del valor largo (ej: SN | D172804909023016 → sn es D172804909023016)
+- LOT seguido del valor (ej: LOT 2023-05)
 
-REGLAS CRÍTICAS:
-- MODELO y SN son campos DISTINTOS en la etiqueta, busca sus etiquetas específicas
-- El MODELO suele ser corto (4-8 caracteres)
-- El SN suele ser largo (10-20 caracteres), frecuentemente bajo un código de barras
-- No confundas: O(letra) con 0(cero), I(letra) con 1(uno), B con 8, S con 5
-- Si un dato no existe, pon cadena vacía ""
-- Responde ÚNICAMENTE con el JSON, nada más` }
+Extrae estos datos en JSON puro sin markdown:
+{"equipo":"nombre del producto","modelo":"valor DESPUÉS de MODELO: — suele ser corto como N5909, Q500, etc","sn":"valor DESPUÉS de SN o SN | — suele ser largo, empieza por letra seguida de números","lot":"valor después de LOT"}
+
+REGLAS:
+- El modelo es el valor que va JUSTO DESPUÉS de la palabra MODELO o MODELO:
+- El SN es el valor que va JUSTO DESPUÉS de SN o SN |
+- Son campos separados con etiquetas distintas en la etiqueta física
+- No confundas O con 0, I con 1
+- Si un dato no existe pon ""
+- Responde SOLO el JSON` }
           ]
         }]
       })
