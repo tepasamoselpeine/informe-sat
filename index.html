@@ -482,103 +482,221 @@ async function generarPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
   const W = 210, H = 297;
+  const M = 14; // margen
 
-  const sh = (x, y, w, txt) => {
-    doc.setFillColor(26,58,92); doc.rect(x, y-4, w, 7, 'F');
-    doc.setFillColor(46,142,255); doc.rect(x, y-4, 3, 7, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(232,240,250);
-    doc.text(txt, x+5, y+0.5);
-  };
+  // ── helpers ──
+  const negro    = () => doc.setTextColor(0,0,0);
+  const gris     = () => doc.setTextColor(80,80,80);
+  const grisClar = () => doc.setTextColor(130,130,130);
+  const bold     = (s) => doc.setFont('helvetica','bold');
+  const normal   = (s) => doc.setFont('helvetica','normal');
+  const linea    = (y) => { doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(M, y, W-M, y); };
+  const lineaNeg = (x1,y1,x2,y2,w=0.4) => { doc.setDrawColor(0,0,0); doc.setLineWidth(w); doc.line(x1,y1,x2,y2); };
 
-  // Cabecera
-  doc.setFillColor(15,25,35); doc.rect(0,0,W,28,'F');
-  doc.setFillColor(46,142,255); doc.rect(0,0,6,28,'F');
-  doc.setTextColor(232,240,250); doc.setFont('helvetica','bold'); doc.setFontSize(17);
-  doc.text('INFORME DE SERVICIO TÉCNICO', 12, 12);
-  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(122,146,172);
-  doc.text(`${empresa.toUpperCase()}  ·  Documento de diagnóstico / revisión`, 12, 19);
-  doc.setTextColor(232,240,250); doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text(`Nº ${num}`, W-12, 12, {align:'right'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(122,146,172);
-  doc.text(fecha, W-12, 19, {align:'right'});
+  // ══ CABECERA ══════════════════════════════════════════
+  // Borde superior negro grueso
+  doc.setFillColor(0,0,0);
+  doc.rect(0, 0, W, 2, 'F');
 
-  let y = 34;
-  const fW=58, fH=52, fX=W-12-fW;
+  // Nombre empresa grande
+  bold(); doc.setFontSize(22); negro();
+  doc.text(empresa.toUpperCase(), M, 16);
 
+  // Línea separadora
+  lineaNeg(M, 20, W-M, 20, 0.6);
+
+  // Título informe
+  bold(); doc.setFontSize(11); negro();
+  doc.text('INFORME DE SERVICIO TÉCNICO', M, 27);
+
+  // Nº y fecha alineados a la derecha
+  normal(); doc.setFontSize(9); gris();
+  doc.text(`Nº ${num}`, W-M, 23, {align:'right'});
+  doc.text(`Fecha: ${fecha}`, W-M, 29, {align:'right'});
+
+  // Línea bajo cabecera
+  lineaNeg(M, 32, W-M, 32, 0.3);
+
+  let y = 40;
+
+  // ══ BLOQUE FOTO + DATOS ═══════════════════════════════
+  const fW=52, fH=46, fX=W-M-fW;
+
+  // Foto con borde
   if (fotoDataUrl) {
-    doc.setFillColor(30,45,64); doc.roundedRect(fX-1,y-1,fW+2,fH+2,2,2,'F');
-    doc.addImage(fotoDataUrl,'JPEG',fX,y,fW,fH);
-    doc.setFontSize(7); doc.setTextColor(122,146,172);
+    doc.setDrawColor(0,0,0); doc.setLineWidth(0.3);
+    doc.rect(fX, y, fW, fH, 'S');
+    doc.addImage(fotoDataUrl,'JPEG', fX+0.5, y+0.5, fW-1, fH-1);
+    grisClar(); doc.setFontSize(7); normal();
     doc.text('FOTO ETIQUETA', fX+fW/2, y+fH+4, {align:'center'});
   }
 
-  const bW = fX-16;
-  sh(12, y, bW, '  DATOS DEL CLIENTE Y EQUIPO'); y+=8;
-  [['Cliente:',cliente],['Fecha:',fecha],['Equipo:',equipo],['Modelo:',modelo],['Nº Serie:',sn]].forEach(([l,v],i) => {
-    if(i%2===0){doc.setFillColor(23,32,48);doc.rect(12,y-4,bW,7,'F');}
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(122,146,172);doc.text(l,14,y);
-    doc.setFont('helvetica','normal');doc.setTextColor(232,240,250);doc.text(v,50,y);
-    y+=8;
+  // Datos cliente y equipo
+  const bW = fX - M - 6;
+
+  bold(); doc.setFontSize(8); negro();
+  doc.text('DATOS DEL CLIENTE', M, y+5);
+  lineaNeg(M, y+7, M+bW, y+7, 0.2);
+
+  const camposCliente = [['Cliente', cliente], ['Fecha', fecha], ['Nº Informe', num]];
+  camposCliente.forEach(([l, v], i) => {
+    const fy = y + 13 + i * 8;
+    grisClar(); normal(); doc.setFontSize(7.5);
+    doc.text(l.toUpperCase(), M, fy);
+    negro(); bold(); doc.setFontSize(8.5);
+    doc.text(v, M, fy + 4.5);
+    if (i < camposCliente.length-1) linea(fy + 6.5);
   });
-  y = Math.max(y, 34+fH+10)+4;
 
-  sh(12, y, W-24, '  PRUEBAS REALIZADAS'); y+=8;
-  const cW=(W-24)/2;
-  PRUEBAS.forEach((nombre,i) => {
-    const col=i%2, row=Math.floor(i/2);
-    const px=12+col*(cW+2), py=y+row*10;
-    doc.setFillColor(col%2===0?23:30, col%2===0?32:45, col%2===0?48:64);
-    doc.rect(px,py-3,cW-1,9,'F');
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(232,240,250);
-    doc.text(nombre,px+2,py+2.5);
-    const est=estados[nombre];
-    const ec={OK:[0,212,170],DEF:[255,107,53],MAL:[255,59,92]}[est];
-    doc.setFillColor(...ec);doc.roundedRect(px+cW-22,py-1,20,7,1,1,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(7);
-    doc.setTextColor(est==='OK'?0:255,est==='OK'?0:255,est==='OK'?0:255);
-    doc.text(est,px+cW-12,py+3.5,{align:'center'});
+  const y2 = y + 14 + camposCliente.length * 8 + 4;
+
+  bold(); doc.setFontSize(8); negro();
+  doc.text('DATOS DEL EQUIPO', M, y2);
+  lineaNeg(M, y2+2, M+bW, y2+2, 0.2);
+
+  const camposEquipo = [['Equipo', equipo], ['Modelo', modelo], ['Nº Serie (SN)', sn]];
+  camposEquipo.forEach(([l, v], i) => {
+    const fy = y2 + 8 + i * 8;
+    grisClar(); normal(); doc.setFontSize(7.5);
+    doc.text(l.toUpperCase(), M, fy);
+    negro(); bold(); doc.setFontSize(8.5);
+    // Truncar si es muy largo
+    const vt = doc.splitTextToSize(v, bW)[0];
+    doc.text(vt, M, fy + 4.5);
+    if (i < camposEquipo.length-1) linea(fy + 6.5);
   });
-  y+=Math.ceil(PRUEBAS.length/2)*10+6;
 
-  sh(12,y,W-24,'  REPARACIÓN REALIZADA');y+=8;
-  doc.setFillColor(23,32,48);doc.rect(12,y-3,W-24,22,'F');
-  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(232,240,250);
-  doc.text(doc.splitTextToSize(rep,W-30).slice(0,3),15,y+3);
-  y+=24;
+  y = Math.max(y + fH + 10, y2 + 8 + camposEquipo.length * 8 + 6);
 
-  sh(12,y,W-24,'  PIEZAS SUSTITUIDAS');y+=8;
-  doc.setFillColor(23,32,48);doc.rect(12,y-3,W-24,16,'F');
-  piezas.split('\n').slice(0,2).forEach((l,i)=>{
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(232,240,250);
-    doc.text(`• ${l}`,15,y+3+i*6);
+  lineaNeg(M, y, W-M, y, 0.4);
+  y += 8;
+
+  // ══ PRUEBAS ═══════════════════════════════════════════
+  bold(); doc.setFontSize(9); negro();
+  doc.text('PRUEBAS REALIZADAS', M, y);
+  y += 5;
+
+  const cW = (W - M*2 - 4) / 2;
+  PRUEBAS.forEach((nombre, i) => {
+    const col = i % 2, row = Math.floor(i / 2);
+    const px = M + col * (cW + 4);
+    const py = y + row * 9;
+    const est = estados[nombre];
+
+    // Fondo alterno muy suave
+    if (i % 2 === 0 && col === 0) {
+      doc.setFillColor(248,248,248);
+      doc.rect(M, py-3, W-M*2, 8.5, 'F');
+    }
+
+    normal(); doc.setFontSize(8); negro();
+    doc.text(nombre, px+2, py+2.5);
+
+    // Badge estado
+    const badgeW = 18, badgeH = 5.5;
+    const bx = px + cW - badgeW - 1;
+    const by = py - 2;
+    if (est === 'OK') {
+      doc.setFillColor(255,255,255); doc.setDrawColor(0,0,0); doc.setLineWidth(0.3);
+      doc.rect(bx, by, badgeW, badgeH, 'FD');
+      bold(); doc.setFontSize(7); negro();
+    } else if (est === 'DEF') {
+      doc.setFillColor(80,80,80); doc.rect(bx, by, badgeW, badgeH, 'F');
+      bold(); doc.setFontSize(7); doc.setTextColor(255,255,255);
+    } else {
+      doc.setFillColor(0,0,0); doc.rect(bx, by, badgeW, badgeH, 'F');
+      bold(); doc.setFontSize(7); doc.setTextColor(255,255,255);
+    }
+    doc.text(est, bx + badgeW/2, by + 3.8, {align:'center'});
   });
-  y+=18;
 
-  sh(12,y,W-24,'  OBSERVACIONES / RECOMENDACIONES');y+=8;
-  doc.setFillColor(40,35,15);doc.rect(12,y-3,W-24,14,'F');
-  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(232,240,250);
-  doc.text(doc.splitTextToSize(obs,W-30).slice(0,2),15,y+3);
-  y+=16;
+  y += Math.ceil(PRUEBAS.length/2) * 9 + 6;
+  lineaNeg(M, y, W-M, y, 0.4);
+  y += 8;
 
-  sh(12,y,W-24,'  TIEMPO Y COSTE');y+=8;
-  const half=(W-24)/2;
-  doc.setFillColor(46,142,255);doc.roundedRect(12,y-3,half-2,20,2,2,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(200,220,255);
-  doc.text('HORAS A FACTURAR',12+(half-2)/2,y+3,{align:'center'});
-  doc.setFontSize(20);doc.setTextColor(255,255,255);
-  doc.text(`${horas.toFixed(1)} h`,12+(half-2)/2,y+13,{align:'center'});
-  doc.setFillColor(15,25,35);doc.roundedRect(12+half,y-3,half-2,20,2,2,'F');
-  doc.setFillColor(46,142,255);doc.rect(12+half,y-3,3,20,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(122,146,172);
-  doc.text('COSTE MANO DE OBRA',12+half+(half-2)/2,y+3,{align:'center'});
-  doc.setFontSize(14);doc.setTextColor(0,212,170);
-  doc.text(coste,12+half+(half-2)/2,y+13,{align:'center'});
+  // ══ REPARACIÓN ════════════════════════════════════════
+  bold(); doc.setFontSize(9); negro();
+  doc.text('REPARACIÓN REALIZADA', M, y);
+  y += 5;
 
-  doc.setFillColor(15,25,35);doc.rect(0,H-12,W,12,'F');
-  doc.setFillColor(46,142,255);doc.rect(0,H-12,W,1.5,'F');
-  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(122,146,172);
-  doc.text(`Informe SAT  ·  Documento para uso interno y cliente  ·  ${empresa}`,W/2,H-5,{align:'center'});
+  doc.setFillColor(248,248,248);
+  const repLines = doc.splitTextToSize(rep, W-M*2-6);
+  const repH = repLines.length * 5 + 6;
+  doc.rect(M, y, W-M*2, repH, 'F');
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.2);
+  doc.rect(M, y, W-M*2, repH, 'S');
+  normal(); doc.setFontSize(8.5); negro();
+  doc.text(repLines, M+3, y+5);
+  y += repH + 6;
 
+  // ══ PIEZAS ════════════════════════════════════════════
+  bold(); doc.setFontSize(9); negro();
+  doc.text('PIEZAS SUSTITUIDAS', M, y);
+  y += 5;
+
+  const piezasLines = piezas.split('\n').filter(l => l.trim());
+  const piezasH = piezasLines.length * 5.5 + 6;
+  doc.setFillColor(248,248,248);
+  doc.rect(M, y, W-M*2, Math.max(piezasH, 12), 'F');
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.2);
+  doc.rect(M, y, W-M*2, Math.max(piezasH, 12), 'S');
+  normal(); doc.setFontSize(8.5); negro();
+  piezasLines.forEach((l, i) => doc.text(`• ${l}`, M+3, y+5+i*5.5));
+  y += Math.max(piezasH, 12) + 6;
+
+  // ══ OBSERVACIONES ════════════════════════════════════
+  bold(); doc.setFontSize(9); negro();
+  doc.text('OBSERVACIONES / RECOMENDACIONES', M, y);
+  y += 5;
+
+  const obsLines = doc.splitTextToSize(obs, W-M*2-6);
+  const obsH = obsLines.length * 5 + 6;
+  doc.setFillColor(248,248,248);
+  doc.rect(M, y, W-M*2, Math.max(obsH,12), 'F');
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.2);
+  doc.rect(M, y, W-M*2, Math.max(obsH,12), 'S');
+  normal(); doc.setFontSize(8.5); negro();
+  doc.text(obsLines, M+3, y+5);
+  y += Math.max(obsH,12) + 6;
+
+  lineaNeg(M, y, W-M, y, 0.4);
+  y += 8;
+
+  // ══ TIEMPO Y COSTE ════════════════════════════════════
+  bold(); doc.setFontSize(9); negro();
+  doc.text('TIEMPO Y COSTE', M, y);
+  y += 5;
+
+  const half = (W - M*2 - 4) / 2;
+
+  // Horas
+  doc.setFillColor(0,0,0);
+  doc.rect(M, y, half, 18, 'F');
+  doc.setTextColor(255,255,255);
+  normal(); doc.setFontSize(7.5);
+  doc.text('HORAS A FACTURAR', M + half/2, y+5, {align:'center'});
+  bold(); doc.setFontSize(18);
+  doc.text(`${horas.toFixed(1)} h`, M + half/2, y+14, {align:'center'});
+
+  // Coste
+  doc.setFillColor(248,248,248);
+  doc.setDrawColor(0,0,0); doc.setLineWidth(0.3);
+  doc.rect(M+half+4, y, half, 18, 'FD');
+  negro(); normal(); doc.setFontSize(7.5);
+  doc.text('COSTE MANO DE OBRA', M+half+4+half/2, y+5, {align:'center'});
+  bold(); doc.setFontSize(14); negro();
+  doc.text(coste, M+half+4+half/2, y+14, {align:'center'});
+
+  y += 24;
+
+  // ══ PIE ═══════════════════════════════════════════════
+  lineaNeg(M, H-16, W-M, H-16, 0.3);
+  doc.setFillColor(0,0,0);
+  doc.rect(0, H-10, W, 10, 'F');
+  doc.setTextColor(255,255,255); normal(); doc.setFontSize(7);
+  doc.text(`${empresa}  ·  Informe de Servicio Técnico  ·  Documento para uso interno y cliente`, W/2, H-5, {align:'center'});
+
+  // ── Guardar ──
   const clean = s => s.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'');
   const fname = `Informe_${clean(modelo)}_${clean(empresa)}_${clean(cliente)}_${fecha}.pdf`;
   doc.save(fname);
