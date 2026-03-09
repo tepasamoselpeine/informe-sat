@@ -924,6 +924,15 @@ async function uploadToDrive() {
       body: form
     });
 
+    if (res.status === 401) {
+      // Token caducado — pedir nuevo login
+      driveToken = null;
+      document.getElementById('btnDrive').disabled = false;
+      mostrarDriveStatus('', '🔄 Sesión caducada, vuelve a intentarlo...');
+      setTimeout(() => subirDrive(), 500);
+      return;
+    }
+
     if (res.ok) {
       mostrarDriveStatus('ok', '✅ Guardado en Drive → carpeta "SAT Informes"');
     } else {
