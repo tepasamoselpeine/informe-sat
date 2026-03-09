@@ -59,9 +59,11 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
 .pbtn.ok{border-color:#00D4AA;color:#00D4AA;}
 .pbtn.def{border-color:#FF6B35;color:#FF6B35;}
 .pbtn.mal{border-color:#FF3B5C;color:#FF3B5C;}
+.pbtn.na{border-color:#7A92AC;color:#7A92AC;}
 .pbtn.sel-ok{background:#00D4AA;color:#000;}
 .pbtn.sel-def{background:#FF6B35;color:#fff;}
 .pbtn.sel-mal{background:#FF3B5C;color:#fff;}
+.pbtn.sel-na{background:#7A92AC;color:#fff;}
 
 .horas-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
 .horas-btn{width:44px;height:44px;border-radius:10px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
@@ -318,6 +320,7 @@ function renderPruebas() {
         <button class="pbtn ok ${estados[nombre]==='OK'?'sel-ok':''}" onclick="setEstado('${nombre}','OK',this.parentElement)">OK</button>
         <button class="pbtn def ${estados[nombre]==='DEF'?'sel-def':''}" onclick="setEstado('${nombre}','DEF',this.parentElement)">DEF</button>
         <button class="pbtn mal ${estados[nombre]==='MAL'?'sel-mal':''}" onclick="setEstado('${nombre}','MAL',this.parentElement)">MAL</button>
+        <button class="pbtn na ${estados[nombre]==='N/A'?'sel-na':''}" onclick="setEstado('${nombre}','N/A',this.parentElement)">N/A</button>
       </div>`;
     grid.appendChild(div);
   });
@@ -325,11 +328,11 @@ function renderPruebas() {
 
 function setEstado(nombre, val, btns) {
   estados[nombre] = val;
-  const clsMap = { OK:'sel-ok', DEF:'sel-def', MAL:'sel-mal' };
+  const clsMap = { OK:'sel-ok', DEF:'sel-def', MAL:'sel-mal', 'N/A':'sel-na' };
   btns.querySelectorAll('.pbtn').forEach(b => {
-    ['sel-ok','sel-def','sel-mal'].forEach(c => b.classList.remove(c));
+    ['sel-ok','sel-def','sel-mal','sel-na'].forEach(c => b.classList.remove(c));
   });
-  const idx = { OK:0, DEF:1, MAL:2 }[val];
+  const idx = { OK:0, DEF:1, MAL:2, 'N/A':3 }[val];
   btns.children[idx].classList.add(clsMap[val]);
 }
 
@@ -623,9 +626,12 @@ async function generarPDF() {
     } else if (est === 'DEF') {
       doc.setFillColor(80,80,80); doc.rect(bx, by, badgeW, badgeH, 'F');
       bold(); doc.setFontSize(7); doc.setTextColor(255,255,255);
-    } else {
+    } else if (est === 'MAL') {
       doc.setFillColor(0,0,0); doc.rect(bx, by, badgeW, badgeH, 'F');
       bold(); doc.setFontSize(7); doc.setTextColor(255,255,255);
+    } else { // N/A
+      doc.setFillColor(220,220,220); doc.rect(bx, by, badgeW, badgeH, 'F');
+      bold(); doc.setFontSize(7); doc.setTextColor(100,100,100);
     }
     doc.text(est, bx + badgeW/2, by + 3.8, {align:'center'});
   });
