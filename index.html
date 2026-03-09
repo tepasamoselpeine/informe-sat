@@ -870,12 +870,32 @@ async function generarPDF() {
 }
 
 // ── Google Drive ──────────────────────────────────────
-let driveToken = null;
+let driveToken = localStorage.getItem('sat_drive_token') || null;
+let driveTokenExpiry = parseInt(localStorage.getItem('sat_drive_expiry') || '0');
 let ultimoPdfBlob = null;
 let ultimoNombrePdf = null;
 
+function driveTokenValido() {
+  return driveToken && Date.now() < driveTokenExpiry;
+}
+
+function guardarDriveToken(token) {
+  driveToken = token;
+  driveTokenExpiry = Date.now() + 55 * 60 * 1000; // 55 minutos
+  localStorage.setItem('sat_drive_token', token);
+  localStorage.setItem('sat_drive_expiry', driveTokenExpiry.toString());
+}
+
+function limpiarDriveToken() {
+  driveToken = null;
+  driveTokenExpiry = 0;
+  localStorage.removeItem('sat_drive_token');
+  localStorage.removeItem('sat_drive_expiry');
+}
+
 function subirDrive() {
-  if (!driveToken) {
+  if (!driveTokenValido()) {
+    limpiarDriveToken();
     const client = google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: DRIVE_SCOPE,
@@ -884,7 +904,7 @@ function subirDrive() {
           mostrarDriveStatus('error', '❌ Error de autenticación');
           return;
         }
-        driveToken = response.access_token;
+        guardarDriveToken(response.access_token);
         await uploadToDrive();
       }
     });
@@ -925,8 +945,8 @@ async function uploadToDrive() {
     });
 
     if (res.status === 401) {
-      // Token caducado — pedir nuevo login
-      driveToken = null;
+      // Token caducado — limpiar y pedir nuevo login
+      limpiarDriveToken();
       document.getElementById('btnDrive').disabled = false;
       mostrarDriveStatus('', '🔄 Sesión caducada, vuelve a intentarlo...');
       setTimeout(() => subirDrive(), 500);
@@ -1009,7 +1029,7 @@ async function cargarHistorialDrive() {
   const list = document.getElementById('historialList');
   list.innerHTML = '<div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Cargando desde Drive...</div>';
 
-  if (!driveToken) {
+  if (!driveTokenValido()) {
     // Pedir autenticación
     try {
       await new Promise((resolve, reject) => {
@@ -1018,7 +1038,7 @@ async function cargarHistorialDrive() {
           scope: DRIVE_SCOPE,
           callback: (response) => {
             if (response.error) reject(response.error);
-            else { driveToken = response.access_token; resolve(); }
+            else { guardarDriveToken(response.access_token); resolve(); }
           }
         });
         client.requestAccessToken();
@@ -1073,7 +1093,7 @@ async function cargarHistorialDrive() {
     }).join('');
 
   } catch(e) {
-    driveToken = null;
+    limpiarDriveToken();
     list.innerHTML = '<div class="empty">❌ Error al cargar — intenta de nuevo</div>';
   }
 }
