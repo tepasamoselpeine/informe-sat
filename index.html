@@ -112,8 +112,13 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
 .key-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:monospace;font-size:12px;padding:12px;outline:none;margin-top:6px;word-break:break-all;}
 .key-input:focus{border-color:var(--accent);}
 .btn-voz{width:100%;padding:16px;border-radius:13px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;letter-spacing:2px;border:none;cursor:pointer;transition:all .2s;box-shadow:0 4px 20px rgba(231,76,60,0.4);}
-.btn-voz.grabando{background:linear-gradient(135deg,#922b21,#c0392b);animation:pulse-red 1s infinite;}
-@keyframes pulse-red{0%,100%{box-shadow:0 4px 20px rgba(231,76,60,0.4);}50%{box-shadow:0 4px 30px rgba(231,76,60,0.8);}}
+.btn-voz-ctrl{flex:1;padding:13px;border-radius:11px;font-family:'Barlow',sans-serif;font-weight:700;font-size:14px;border:none;cursor:pointer;transition:all .2s;}
+.btn-voz-ctrl.pausar{background:var(--warn);color:#fff;}
+.btn-voz-ctrl.reanudar{background:var(--accent);color:#fff;}
+.btn-voz-ctrl.finalizar{background:var(--surface);color:var(--text);border:1px solid var(--border);}
+.voz-grabando-indicator{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,59,92,0.1);border:1px solid rgba(255,59,92,0.3);border-radius:10px;font-size:13px;color:var(--text);}
+.voz-dot{width:10px;height:10px;border-radius:50%;background:#FF3B5C;flex-shrink:0;animation:pulse-red 1s infinite;}
+@keyframes pulse-red{0%,100%{opacity:1;}50%{opacity:0.3;}}
 </style>
 </head>
 <body>
@@ -178,10 +183,37 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
     <!-- DICTADO POR VOZ -->
     <div class="section" id="seccionVoz">
       <div class="section-title"><span>🎤</span> Dictado por voz</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">Pulsa el botón y habla libremente. Por ejemplo:<br><em>"Cliente Ortopedia Manolo, hemos cambiado el joystick y revisado la batería, piezas sustituidas joystick modelo X, observaciones revisar en 3 meses"</em></div>
-      <button class="btn-voz" id="btnVoz" onclick="iniciarDictado()">🎤 Iniciar dictado</button>
-      <div id="vozStatus" style="font-size:12px;color:var(--muted);text-align:center;margin-top:8px;min-height:18px"></div>
-      <div id="vozTexto" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px;margin-top:10px;font-size:13px;line-height:1.5;color:var(--text)"></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">Pulsa iniciar y habla libremente. Pausa cuando necesites pensar y finaliza cuando hayas terminado.</div>
+      
+      <!-- Estado inicial -->
+      <div id="vozPanelInicio">
+        <button class="btn-voz" onclick="iniciarDictado()">🎤 Iniciar dictado</button>
+      </div>
+
+      <!-- Estado grabando -->
+      <div id="vozPanelGrabando" style="display:none">
+        <div class="voz-grabando-indicator">
+          <div class="voz-dot"></div>
+          <span id="vozStatus">Grabando...</span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <button class="btn-voz-ctrl pausar" id="btnPausar" onclick="pausarDictado()">⏸ Pausar</button>
+          <button class="btn-voz-ctrl finalizar" onclick="finalizarDictado()">⏹ Finalizar</button>
+        </div>
+      </div>
+
+      <!-- Estado pausado -->
+      <div id="vozPanelPausado" style="display:none">
+        <div style="text-align:center;font-size:13px;color:var(--warn);margin-bottom:10px">⏸ Pausado — puedes continuar o finalizar</div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-voz-ctrl reanudar" onclick="reanudarDictado()">▶ Continuar</button>
+          <button class="btn-voz-ctrl finalizar" onclick="finalizarDictado()">⏹ Finalizar</button>
+        </div>
+      </div>
+
+      <!-- Texto transcrito -->
+      <div id="vozTexto" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px;margin-top:12px;font-size:13px;line-height:1.5;color:var(--text)"></div>
+      <div id="vozIA" style="font-size:12px;color:var(--muted);text-align:center;margin-top:8px;min-height:18px"></div>
     </div>
 
     <!-- CLIENTE -->
@@ -359,73 +391,103 @@ function cambiarHoras(d) {
 // ── Voz ───────────────────────────────────────────────
 let reconocimiento = null;
 let grabando = false;
+let pausado = false;
+let textoAcumulado = '';
+
+function mostrarPanelVoz(panel) {
+  ['vozPanelInicio','vozPanelGrabando','vozPanelPausado'].forEach(id => {
+    document.getElementById(id).style.display = id === panel ? 'block' : 'none';
+  });
+}
 
 function iniciarDictado() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    document.getElementById('vozStatus').textContent = '⚠️ Tu navegador no soporta reconocimiento de voz. Usa Chrome.';
+    document.getElementById('vozIA').textContent = '⚠️ Usa Chrome para el dictado por voz';
     return;
   }
 
-  if (grabando) {
-    reconocimiento.stop();
-    return;
-  }
+  textoAcumulado = '';
+  document.getElementById('vozTexto').style.display = 'none';
+  document.getElementById('vozIA').textContent = '';
+  iniciarReconocimiento();
+}
 
+function iniciarReconocimiento() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   reconocimiento = new SpeechRecognition();
   reconocimiento.lang = 'es-ES';
   reconocimiento.continuous = true;
   reconocimiento.interimResults = true;
-  reconocimiento.maxAlternatives = 1;
-
-  const btn = document.getElementById('btnVoz');
-  const status = document.getElementById('vozStatus');
-  const textoDiv = document.getElementById('vozTexto');
 
   reconocimiento.onstart = () => {
     grabando = true;
-    btn.textContent = '⏹ Detener dictado';
-    btn.classList.add('grabando');
-    status.textContent = '🔴 Grabando... habla ahora';
-    textoDiv.style.display = 'none';
+    pausado = false;
+    mostrarPanelVoz('vozPanelGrabando');
+    document.getElementById('vozStatus').textContent = 'Grabando... habla ahora';
   };
 
-  let textoFinal = '';
   reconocimiento.onresult = (e) => {
     let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) textoFinal += e.results[i][0].transcript + ' ';
+      if (e.results[i].isFinal) textoAcumulado += e.results[i][0].transcript + ' ';
       else interim += e.results[i][0].transcript;
     }
-    status.textContent = interim ? `🔴 "${interim}"` : '🔴 Grabando...';
+    const preview = (textoAcumulado + interim).trim();
+    document.getElementById('vozStatus').textContent = preview ? `"${preview.slice(-60)}"` : 'Grabando... habla ahora';
   };
 
   reconocimiento.onend = () => {
     grabando = false;
-    btn.textContent = '🎤 Iniciar dictado';
-    btn.classList.remove('grabando');
-    if (textoFinal.trim()) {
-      textoDiv.style.display = 'block';
-      textoDiv.textContent = textoFinal.trim();
-      status.textContent = '⏳ Procesando con IA...';
-      procesarDictadoIA(textoFinal.trim());
-    } else {
-      status.textContent = '⚠️ No se detectó audio — intenta de nuevo';
+    if (!pausado) {
+      // Parada automática — reanudar si no fue intencional
     }
   };
 
   reconocimiento.onerror = (e) => {
-    grabando = false;
-    btn.textContent = '🎤 Iniciar dictado';
-    btn.classList.remove('grabando');
-    status.textContent = `⚠️ Error: ${e.error}`;
+    if (e.error !== 'aborted') {
+      document.getElementById('vozIA').textContent = `⚠️ Error: ${e.error}`;
+      mostrarPanelVoz('vozPanelInicio');
+    }
   };
 
   reconocimiento.start();
 }
 
+function pausarDictado() {
+  pausado = true;
+  reconocimiento.stop();
+  mostrarPanelVoz('vozPanelPausado');
+  // Mostrar texto acumulado
+  if (textoAcumulado.trim()) {
+    const textoDiv = document.getElementById('vozTexto');
+    textoDiv.style.display = 'block';
+    textoDiv.textContent = textoAcumulado.trim();
+  }
+}
+
+function reanudarDictado() {
+  iniciarReconocimiento();
+}
+
+function finalizarDictado() {
+  pausado = false;
+  if (reconocimiento) reconocimiento.stop();
+  mostrarPanelVoz('vozPanelInicio');
+
+  const texto = textoAcumulado.trim();
+  if (texto) {
+    const textoDiv = document.getElementById('vozTexto');
+    textoDiv.style.display = 'block';
+    textoDiv.textContent = texto;
+    document.getElementById('vozIA').textContent = '⏳ Procesando con IA...';
+    procesarDictadoIA(texto);
+  } else {
+    document.getElementById('vozIA').textContent = '⚠️ No se detectó audio — intenta de nuevo';
+  }
+}
+
 async function procesarDictadoIA(texto) {
-  if (!API_KEY) { document.getElementById('vozStatus').textContent = '⚠️ Necesitas configurar la API key'; return; }
+  if (!API_KEY) { document.getElementById('vozIA').textContent = '⚠️ Necesitas configurar la API key'; return; }
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -467,10 +529,10 @@ Dictado: "${texto}"`
     if (parsed.piezas)        document.getElementById('piezas').value = parsed.piezas;
     if (parsed.observaciones) document.getElementById('observaciones').value = parsed.observaciones;
 
-    document.getElementById('vozStatus').textContent = '✅ Campos rellenados automáticamente';
+    document.getElementById('vozIA').textContent = '✅ Campos rellenados automáticamente';
 
   } catch(e) {
-    document.getElementById('vozStatus').textContent = '❌ Error al procesar — rellena los campos manualmente';
+    document.getElementById('vozIA').textContent = '❌ Error al procesar — rellena los campos manualmente';
   }
 }
 
