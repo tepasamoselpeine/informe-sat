@@ -568,7 +568,6 @@ async function generarPDF() {
     doc.text(l.toUpperCase(), M, fy);
     negro(); bold(); doc.setFontSize(8.5);
     doc.text(v, M, fy + 4.5);
-    if (i < camposCliente.length-1) linea(fy + 6.5);
   });
 
   const y2 = y + 14 + camposCliente.length * 8 + 4;
@@ -583,10 +582,8 @@ async function generarPDF() {
     grisClar(); normal(); doc.setFontSize(7.5);
     doc.text(l.toUpperCase(), M, fy);
     negro(); bold(); doc.setFontSize(8.5);
-    // Truncar si es muy largo
     const vt = doc.splitTextToSize(v, bW)[0];
     doc.text(vt, M, fy + 4.5);
-    if (i < camposEquipo.length-1) linea(fy + 6.5);
   });
 
   y = Math.max(y + fH + 10, y2 + 8 + camposEquipo.length * 8 + 6);
@@ -835,7 +832,7 @@ function showTab(tab) {
   document.getElementById('tab-historial').style.display = tab==='historial'?'block':'none';
   document.getElementById('btnGenerar').style.display = tab==='nuevo'?'block':'none';
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(i===0)===(tab==='nuevo')));
-  if(tab==='historial') renderHistorial();
+  if(tab==='historial') cargarHistorialDrive();
 }
 
 function nuevoInforme() {
@@ -864,20 +861,82 @@ function cerrarModal() {
   document.getElementById('modalOverlay').classList.remove('show');
 }
 
-function renderHistorial() {
+async function cargarHistorialDrive() {
   const list = document.getElementById('historialList');
-  if(!historial.length){
-    list.innerHTML='<div class="empty">📋 No hay informes generados aún</div>';
-    return;
+  list.innerHTML = '<div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Cargando desde Drive...</div>';
+
+  if (!driveToken) {
+    // Pedir autenticación
+    try {
+      await new Promise((resolve, reject) => {
+        const client = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: DRIVE_SCOPE,
+          callback: (response) => {
+            if (response.error) reject(response.error);
+            else { driveToken = response.access_token; resolve(); }
+          }
+        });
+        client.requestAccessToken();
+      });
+    } catch(e) {
+      list.innerHTML = '<div class="empty">⚠️ Inicia sesión en Google para ver el historial</div>';
+      return;
+    }
   }
-  list.innerHTML = historial.map(h=>`
-    <div class="hist-item">
-      <div>
-        <div style="font-size:14px;font-weight:600">${h.cliente} — ${h.modelo}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">SN: ${h.sn} · ${h.fecha} · ${h.empresa}</div>
-      </div>
-      <div class="hist-badge">PDF</div>
-    </div>`).join('');
+
+  try {
+    // Buscar carpeta SAT Informes
+    const folderId = await buscarCarpetaDrive('SAT Informes');
+    if (!folderId) {
+      list.innerHTML = '<div class="empty">📋 No hay informes en Drive todavía</div>';
+      return;
+    }
+
+    // Listar archivos PDF ordenados por fecha
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType='application/pdf' and trashed=false`);
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name,createdTime,webViewLink)&pageSize=50`, {
+      headers: { Authorization: `Bearer ${driveToken}` }
+    });
+    const data = await res.json();
+    const archivos = data.files || [];
+
+    if (!archivos.length) {
+      list.innerHTML = '<div class="empty">📋 No hay informes en Drive todavía</div>';
+      return;
+    }
+
+    list.innerHTML = archivos.map(f => {
+      // Parsear nombre: Informe_MODELO_EMPRESA_CLIENTE_FECHA.pdf
+      const partes = f.name.replace('.pdf','').split('_');
+      const modelo  = partes[1] || '—';
+      const empresa = partes[2] || '—';
+      const cliente = partes[3] || '—';
+      const fecha   = partes[4] || '—';
+      const fechaLeg = fecha.replace(/-/g,'/');
+
+      return `
+      <div class="hist-item" onclick="window.open('${f.webViewLink}','_blank')" style="cursor:pointer">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${cliente.replace(/_/g,' ')} — ${modelo}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">${fechaLeg} · ${empresa.replace(/_/g,' ')}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div class="hist-badge">PDF</div>
+          <div style="font-size:9px;color:var(--accent)">Abrir</div>
+        </div>
+      </div>`;
+    }).join('');
+
+  } catch(e) {
+    driveToken = null;
+    list.innerHTML = '<div class="empty">❌ Error al cargar — intenta de nuevo</div>';
+  }
+}
+
+function renderHistorial() {
+  // Mantener por compatibilidad — redirige a Drive
+  cargarHistorialDrive();
 }
 </script>
 </body>
