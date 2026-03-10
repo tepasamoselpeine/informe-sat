@@ -892,8 +892,9 @@ async function generarPDF() {
   // ══ TIEMPO ════════════════════════════════════════════
   // Fijar posición desde abajo para no juntarse con el pie
   const yHoras = H - 40;
+  lineaNeg(M, yHoras - 12, W-M, yHoras - 12, 0.4);
   bold(); doc.setFontSize(9); negro();
-  doc.text('TIEMPO', M, yHoras - 5);
+  doc.text('TIEMPO DE TALLER', M, yHoras - 5);
 
   // Horas — ancho completo
   doc.setFillColor(255,255,255);
