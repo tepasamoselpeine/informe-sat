@@ -253,7 +253,7 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
 
     <!-- HORAS -->
     <div class="section">
-      <div class="section-title"><span>⏱</span> Tiempo y coste</div>
+      <div class="section-title"><span>⏱</span> Tiempo de taller</div>
       <div class="horas-row">
         <button class="horas-btn" onclick="cambiarHoras(-0.5)">−</button>
         <div style="flex:1;text-align:center">
@@ -502,10 +502,17 @@ async function procesarDictadoIA(texto) {
         max_tokens: 500,
         messages: [{
           role: 'user',
-          content: `Eres un asistente para informes de servicio técnico de sillas de ruedas.
+          content: `Eres un asistente para informes de servicio técnico de sillas de ruedas y vehículos de movilidad.
+
 Analiza este dictado por voz y extrae los datos en JSON puro sin markdown:
-{"cliente":"nombre del cliente o empresa","reparacion":"descripción del trabajo realizado","piezas":"piezas sustituidas (separadas por comas si hay varias)","observaciones":"observaciones o recomendaciones"}
-Si no encuentras algún dato deja la cadena vacía.
+{"cliente":"nombre del cliente o empresa","reparacion":"descripción completa del trabajo realizado","piezas":"TODAS las piezas, componentes o elementos que se han cambiado, sustituido o reemplazado — si se menciona cambiar, sustituir, reemplazar o que algo está roto/dañado y hay que cambiarlo, incluye esa pieza aquí (separadas por comas)","observaciones":"observaciones o recomendaciones para el cliente"}
+
+REGLAS CRÍTICAS PARA PIEZAS:
+- Si se dice "cambiar el motor", "sustituir el joystick", "hay que cambiar la batería", "el cargador está roto" → añade esa pieza a piezas
+- Si se menciona cualquier componente junto con palabras como: cambiar, sustituir, reemplazar, roto, dañado, averiado, falla, pierde, no funciona → es una pieza a incluir
+- Sé generoso detectando piezas — es mejor incluir de más que de menos
+- Si no hay cliente claro deja cadena vacía
+
 Responde SOLO el JSON.
 
 Dictado: "${texto}"`
@@ -697,7 +704,7 @@ async function generarPDF() {
   const rep     = document.getElementById('reparacion').value || '—';
   const piezas  = document.getElementById('piezas').value || '—';
   const obs     = document.getElementById('observaciones').value || '—';
-  const coste   = 'Por determinar';
+  
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
@@ -892,7 +899,7 @@ async function generarPDF() {
   doc.rect(M, y, W-M*2, 18, 'F');
   doc.setTextColor(255,255,255);
   normal(); doc.setFontSize(7.5);
-  doc.text('HORAS A FACTURAR', W/2, y+5, {align:'center'});
+  doc.text('HORAS DE TALLER', W/2, y+5, {align:'center'});
   bold(); doc.setFontSize(18);
   doc.text(`${horas.toFixed(1)} h`, W/2, y+14, {align:'center'});
 
