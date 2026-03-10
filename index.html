@@ -262,7 +262,6 @@ main{padding:16px 14px 100px;max-width:580px;margin:0 auto;}
         </div>
         <button class="horas-btn" onclick="cambiarHoras(0.5)">+</button>
       </div>
-      <div class="field"><label>Coste mano de obra (€)</label><input type="number" id="coste" placeholder="45.00" step="0.01"></div>
     </div>
   </div>
 
@@ -698,7 +697,7 @@ async function generarPDF() {
   const rep     = document.getElementById('reparacion').value || '—';
   const piezas  = document.getElementById('piezas').value || '—';
   const obs     = document.getElementById('observaciones').value || '—';
-  const coste   = document.getElementById('coste').value ? document.getElementById('coste').value + ' €' : 'Por determinar';
+  const coste   = 'Por determinar';
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
@@ -883,30 +882,19 @@ async function generarPDF() {
   lineaNeg(M, y, W-M, y, 0.4);
   y += 8;
 
-  // ══ TIEMPO Y COSTE ════════════════════════════════════
+  // ══ TIEMPO ════════════════════════════════════════════
   bold(); doc.setFontSize(9); negro();
-  doc.text('TIEMPO Y COSTE', M, y);
+  doc.text('TIEMPO', M, y);
   y += 5;
 
-  const half = (W - M*2 - 4) / 2;
-
-  // Horas
+  // Horas — ancho completo
   doc.setFillColor(0,0,0);
-  doc.rect(M, y, half, 18, 'F');
+  doc.rect(M, y, W-M*2, 18, 'F');
   doc.setTextColor(255,255,255);
   normal(); doc.setFontSize(7.5);
-  doc.text('HORAS A FACTURAR', M + half/2, y+5, {align:'center'});
+  doc.text('HORAS A FACTURAR', W/2, y+5, {align:'center'});
   bold(); doc.setFontSize(18);
-  doc.text(`${horas.toFixed(1)} h`, M + half/2, y+14, {align:'center'});
-
-  // Coste
-  doc.setFillColor(248,248,248);
-  doc.setDrawColor(0,0,0); doc.setLineWidth(0.3);
-  doc.rect(M+half+4, y, half, 18, 'FD');
-  negro(); normal(); doc.setFontSize(7.5);
-  doc.text('COSTE MANO DE OBRA', M+half+4+half/2, y+5, {align:'center'});
-  bold(); doc.setFontSize(14); negro();
-  doc.text(coste, M+half+4+half/2, y+14, {align:'center'});
+  doc.text(`${horas.toFixed(1)} h`, W/2, y+14, {align:'center'});
 
   y += 24;
 
@@ -1094,7 +1082,7 @@ function nuevoInforme() {
       <button class="foto-btn" onclick="document.getElementById('inputGaleria').click()">🖼️ Galería</button>
     </div>`;
   document.getElementById('aiBanner').style.display='none';
-  ['cliente','equipo','modelo','sn','reparacion','piezas','observaciones','coste'].forEach(id=>{
+  ['cliente','equipo','modelo','sn','reparacion','piezas','observaciones'].forEach(id=>{
     document.getElementById(id).value='';
   });
   const n = (historial.length+1).toString().padStart(3,'0');
