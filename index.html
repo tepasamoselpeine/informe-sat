@@ -895,12 +895,12 @@ async function generarPDF() {
   y += 5;
 
   // Horas — ancho completo
-  doc.setFillColor(0,0,0);
-  doc.rect(M, y, W-M*2, 18, 'F');
-  doc.setTextColor(255,255,255);
-  normal(); doc.setFontSize(7.5);
+  doc.setFillColor(255,255,255);
+  doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
+  doc.rect(M, y, W-M*2, 18, 'FD');
+  negro(); normal(); doc.setFontSize(7.5);
   doc.text('HORAS DE TALLER', W/2, y+5, {align:'center'});
-  bold(); doc.setFontSize(18);
+  bold(); doc.setFontSize(18); negro();
   doc.text(`${horas.toFixed(1)} h`, W/2, y+14, {align:'center'});
 
   y += 24;
