@@ -877,31 +877,23 @@ async function generarPDF() {
   y += 5;
 
   const obsLines = doc.splitTextToSize(obs, W-M*2-6);
-  const obsH = obsLines.length * 5 + 6;
+  const obsH = Math.min(obsLines.length * 5 + 6, 20); // máximo 20mm
   doc.setFillColor(248,248,248);
-  doc.rect(M, y, W-M*2, Math.max(obsH,12), 'F');
+  doc.rect(M, y, W-M*2, obsH, 'F');
   doc.setDrawColor(200,200,200); doc.setLineWidth(0.2);
-  doc.rect(M, y, W-M*2, Math.max(obsH,12), 'S');
+  doc.rect(M, y, W-M*2, obsH, 'S');
   normal(); doc.setFontSize(8.5); negro();
   doc.text(obsLines, M+3, y+5);
-  y += Math.max(obsH,12) + 6;
-
-  lineaNeg(M, y, W-M, y, 0.4);
-  y += 8;
 
   // ══ TIEMPO ════════════════════════════════════════════
-  // Fijar posición desde abajo para no juntarse con el pie
-  const yHoras = H - 40;
-  lineaNeg(M, yHoras - 12, W-M, yHoras - 12, 0.4);
-  bold(); doc.setFontSize(9); negro();
-  doc.text('TIEMPO DE TALLER', M, yHoras - 5);
+  const yHoras = H - 42;
 
   // Horas — ancho completo
   doc.setFillColor(255,255,255);
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
   doc.rect(M, yHoras, W-M*2, 18, 'FD');
   negro(); normal(); doc.setFontSize(7.5);
-  doc.text('HORAS DE TALLER', W/2, yHoras+5, {align:'center'});
+  doc.text('TIEMPO DE TALLER', W/2, yHoras+5, {align:'center'});
   bold(); doc.setFontSize(18); negro();
   doc.text(`${horas.toFixed(1)} h`, W/2, yHoras+14, {align:'center'});
 
