@@ -890,20 +890,19 @@ async function generarPDF() {
   y += 8;
 
   // ══ TIEMPO ════════════════════════════════════════════
+  // Fijar posición desde abajo para no juntarse con el pie
+  const yHoras = H - 40;
   bold(); doc.setFontSize(9); negro();
-  doc.text('TIEMPO', M, y);
-  y += 5;
+  doc.text('TIEMPO', M, yHoras - 5);
 
   // Horas — ancho completo
   doc.setFillColor(255,255,255);
   doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
-  doc.rect(M, y, W-M*2, 18, 'FD');
+  doc.rect(M, yHoras, W-M*2, 18, 'FD');
   negro(); normal(); doc.setFontSize(7.5);
-  doc.text('HORAS DE TALLER', W/2, y+5, {align:'center'});
+  doc.text('HORAS DE TALLER', W/2, yHoras+5, {align:'center'});
   bold(); doc.setFontSize(18); negro();
-  doc.text(`${horas.toFixed(1)} h`, W/2, y+14, {align:'center'});
-
-  y += 24;
+  doc.text(`${horas.toFixed(1)} h`, W/2, yHoras+14, {align:'center'});
 
   // ══ PIE ═══════════════════════════════════════════════
   lineaNeg(M, H-16, W-M, H-16, 0.3);
